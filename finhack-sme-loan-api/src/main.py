@@ -35,7 +35,7 @@ app.add_middleware(
         "http://127.0.0.1:8000",  # Also include 127.0.0.1 if needed,
         "http://localhost:3000",  # Localhost with port 8000
         "http://127.0.0.1:3000",  # Also include 127.0.0.1 if needed,
-        "https://go2.video"
+        "*",
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Or specify methods like ["GET", "POST", "PUT", "DELETE"]
