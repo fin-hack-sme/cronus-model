@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pydantic
+orjson
+firebase_admin
+numpy
+xgboost
+pandas
