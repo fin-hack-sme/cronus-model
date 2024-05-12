@@ -95,6 +95,7 @@ approved_percentage_model = read_pickle_file_from_path('approved.pkl').get('data
 interest_rate_model = read_pickle_file_from_path('interest.pkl').get('data', None)
 test_data = read_csv_from_storage('TEST_DATA.csv').get('data', None)
 
+
 @app.get("/", response_class=HTMLResponse)
 async def welcome_loan_api_app():
     html_content = f"""
@@ -132,9 +133,9 @@ def loan_amount(application: LoanApplication):
     # Implement your loan amount calculation logic here
     if application.AnnualRevenue > 500000 and application.MissedPayments < 2:
         # Example: Loan amount could be 20% of annual revenue
-        loan_amount = application.AnnualRevenue * 0.20
+        loan_amount_val = application.AnnualRevenue * 0.20
         return format_response("Loan Application Processed",
-                               {"Loan Approved Amount": loan_amount}, status_code=200)
+                               {"Loan Approved Amount": loan_amount_val}, status_code=200)
     else:
         return format_response("Loan Application Processed",
                                {"Loan Approved Amount": 0}, status_code=200)
@@ -147,7 +148,11 @@ async def predict_loan_approval(request: LoanApprovalRequest):
     TAN_ID = request.TAN_ID
     tenure = request.Tenure
     requested_amount = request.Requested_Amount
-    test_data = pd.read_csv('test_data.csv')  #todo
+    info(f"Received TAN ID: {TAN_ID}, Tenure: {tenure}, Requested Amount: {requested_amount}")
+    # Check if TAN ID exists in the test data
+    if TAN_ID not in test_data['TAN_ID'].values:
+        return format_response("Invalid TAN Number Provided", {'prediction': 0}, status_code=400)
+
     # Fetch other features from test data based on TAN ID
     tan_row = test_data[test_data['TAN_ID'] == TAN_ID].iloc[0]
     tan_row = tan_row[['Industry_Type', 'Annual_Sales_(Revenue)', 'Net_Income', 'Total_Assets',
@@ -164,9 +169,14 @@ async def predict_loan_approval(request: LoanApprovalRequest):
     input_data = np.array(tan_row)
 
     # Make prediction
-    loan_approval_model = "joblib.load('loan_approval_model.pkl')"  #todo
     prediction = loan_approval_model.predict([input_data])
-    return LoanApprovalResponse(prediction=prediction)
+    if prediction and prediction[0] == 1:
+        prediction = "Approved"
+    else:
+        prediction = "Rejected"
+    info(f"Loan Approval Prediction: {prediction}")
+    # return LoanApprovalResponse(prediction=prediction)
+    return format_response("Loan Application Processed", {'prediction': prediction}, status_code=200)
 
     # Return prediction
 
@@ -177,7 +187,6 @@ async def get_approved_percentage_and_interest_rate(request: ApprovedPercentageA
     TAN_ID = request.TAN_ID
     tenure = request.Tenure
     requested_amount = request.Requested_Amount
-    test_data = pd.read_csv('test_data.csv')  #todo
     # Fetch other features from test data based on TAN ID
     tan_row = test_data[test_data['TAN_ID'] == TAN_ID].iloc[0]
     tan_row = tan_row[['Industry_Type', 'Annual_Sales_(Revenue)', 'Net_Income', 'Total_Assets',
@@ -192,8 +201,6 @@ async def get_approved_percentage_and_interest_rate(request: ApprovedPercentageA
     tan_row['Loan_Tenure_Months'] = tenure
     input_data = np.array(tan_row)
 
-    approved_percentage_model = "joblib.load('approved_percentage_model.pkl')"  #todo
-    interest_rate_model = "joblib.load('interest_rate_model.pkl')"  #todo
     # Make predictions for approved percentage and interest rate
     approved_percentage = approved_percentage_model.predict([input_data])[0]
     interest_rate = interest_rate_model.predict([input_data])[0]
@@ -204,7 +211,7 @@ async def get_approved_percentage_and_interest_rate(request: ApprovedPercentageA
 
 
 # Route to get top 5 rules
-@app.post("/get_top_5_rules/")
+# @app.post("/get_top_5_rules/")
 async def get_top_5_rules(request: Top5RulesRequest):
     # Assuming your XGBoost model is named 'model'
 
@@ -214,7 +221,6 @@ async def get_top_5_rules(request: Top5RulesRequest):
     TAN_ID = request.TAN_ID
     tenure = request.Tenure
     requested_amount = request.Requested_Amount
-    test_data = pd.read_csv('test_data.csv')  #todo
     # Fetch other features from test data based on TAN ID
     tan_row = test_data[test_data['TAN_ID'] == TAN_ID].iloc[0]
     tan_row = tan_row[['Industry_Type', 'Annual_Sales_(Revenue)', 'Net_Income', 'Total_Assets',
@@ -229,7 +235,6 @@ async def get_top_5_rules(request: Top5RulesRequest):
     tan_row['Loan_Tenure_Months'] = tenure
     test_row = tan_row
     input_data = np.array(tan_row)
-    loan_approval_model = "joblib.load('loan_approval_model.pkl')"  #todo
     model = loan_approval_model
     # Get the prediction probabilities from your model for the selected row
     prediction_probs = model.predict_proba([test_row])
@@ -237,10 +242,10 @@ async def get_top_5_rules(request: Top5RulesRequest):
     predicted_class = prediction_probs.argmax(axis=1)
 
     # Get the booster of the model
-    booster = model.get_booster()  #todo
+    booster = model.get_booster()
 
     # Get the indices of the top 5 most important features
-    importance_scores = model.feature_importances_  #todo
+    importance_scores = model.feature_importances_
     top5_indices = importance_scores.argsort()[-5:]
 
     # Initialize a list to store the top 5 rules
@@ -258,6 +263,7 @@ async def get_top_5_rules(request: Top5RulesRequest):
                 split_info = line.strip()
                 # Split the line by whitespace
                 parts = split_info.split()
+                operator = None
                 for part in parts:
                     if '<=' in part:
                         operator = '<='
