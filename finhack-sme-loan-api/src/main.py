@@ -151,7 +151,11 @@ async def predict_loan_approval(request: LoanApprovalRequest):
     info(f"Received TAN ID: {TAN_ID}, Tenure: {tenure}, Requested Amount: {requested_amount}")
     # Check if TAN ID exists in the test data
     if TAN_ID not in test_data['TAN_ID'].values:
-        return format_response("Invalid TAN Number Provided", {'prediction': 0}, status_code=400)
+        return format_response("Invalid TAN Number Provided", {
+            "prediction": "Rejected",
+            "approved_percentage": 0,
+            "interest_rate": 0
+        }, status_code=400)
 
     # Fetch other features from test data based on TAN ID
     tan_row = test_data[test_data['TAN_ID'] == TAN_ID].iloc[0]
@@ -167,23 +171,60 @@ async def predict_loan_approval(request: LoanApprovalRequest):
     tan_row['Loan_Tenure_Months'] = tenure
 
     input_data = np.array(tan_row)
-
+    data = {}
     # Make prediction
     prediction = loan_approval_model.predict([input_data])
     if prediction and prediction[0] == 1:
         prediction = "Approved"
+        temp = get_approved_percentage_and_interest_rate(TAN_ID=TAN_ID, tenure=tenure,
+                                                  requested_amount=requested_amount)
+        data.update(temp)
+        data['prediction'] = prediction
     else:
         prediction = "Rejected"
-    info(f"Loan Approval Prediction: {prediction}")
+        data.update({
+            "prediction": prediction,
+            "approved_percentage": 0,
+            "interest_rate": 0
+        })
+    info(f"Loan Approval Prediction: {data}")
     # return LoanApprovalResponse(prediction=prediction)
-    return format_response("Loan Application Processed", {'prediction': prediction}, status_code=200)
+    return format_response("Loan Application Processed", data, status_code=200)
 
-    # Return prediction
+
+def get_approved_percentage_and_interest_rate(
+        TAN_ID: int = 0, tenure: int = 0, requested_amount: float = 0
+):
+    # Fetch other features from test data based on TAN ID
+    tan_row = test_data[test_data['TAN_ID'] == TAN_ID].iloc[0]
+    tan_row = tan_row[['Industry_Type', 'Annual_Sales_(Revenue)', 'Net_Income', 'Total_Assets',
+                       'Current_Ratio', 'Quick_Ratio', 'Debt_to_Equity_Ratio',
+                       'Return_on_Assets_(ROA)', 'Return_on_Equity_(ROE)',
+                       'Gross_Profit_Margin', 'Operating_Profit_Margin', 'Net_Profit_Margin',
+                       'Total_Liabilities', 'Total_Shareholder_Equity', 'Number_of_Employees',
+                       'Age_of_the_Company', 'UrbanORRural', 'NewExist', 'Credit_Score',
+                       'Number_of_Existing_Loans', 'Percentage_of_On-time_Payments',
+                       'Number_of_Missed_or_Late_Payments']]
+    tan_row['Loan_Amount_Requested'] = requested_amount
+    tan_row['Loan_Tenure_Months'] = tenure
+    input_data = np.array(tan_row)
+
+    # Make predictions for approved percentage and interest rate
+    approved_percentage = round(approved_percentage_model.predict([input_data])[0], 2)
+    interest_rate = round(interest_rate_model.predict([input_data])[0], 2)
+    approved_amount = int(approved_percentage * requested_amount)
+
+    info(f"Approved Amount: {approved_amount}, Interest Rate: {interest_rate}")
+
+    return {
+        "approved_amount": approved_amount,
+        "interest_rate": interest_rate
+    }
 
 
 # Route to get approved percentage and interest rate
-@app.post("/get_approved_percentage_and_interest_rate/")
-async def get_approved_percentage_and_interest_rate(request: ApprovedPercentageAndInterestRateRequest):
+# @app.post("/get_loan_amount_and_interest_rate/")
+async def get_approved_percentage_and_interest_rate_route(request: ApprovedPercentageAndInterestRateRequest):
     TAN_ID = request.TAN_ID
     tenure = request.Tenure
     requested_amount = request.Requested_Amount
