@@ -155,7 +155,7 @@ async def predict_loan_approval(request: LoanApprovalRequest):
             "prediction": "Rejected",
             "approved_percentage": 0,
             "interest_rate": 0
-        }, status_code=400)
+        }, status_code=200)
 
     # Fetch other features from test data based on TAN ID
     tan_row = test_data[test_data['TAN_ID'] == TAN_ID].iloc[0]
