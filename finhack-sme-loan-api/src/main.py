@@ -29,18 +29,26 @@ firebase_app = initialize_app(cred, {
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://example.com",  # Replace with your actual origin
-        "http://localhost:8000",  # Localhost with port 8000
-        "http://127.0.0.1:8000",  # Also include 127.0.0.1 if needed,
-        "http://localhost:3000",  # Localhost with port 8000
-        "http://127.0.0.1:3000",  # Also include 127.0.0.1 if needed,
-        "*",
-    ],
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
-    allow_methods=["*"],  # Or specify methods like ["GET", "POST", "PUT", "DELETE"]
-    allow_headers=["*"],  # Or specify headers
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
+#
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[
+#         "http://example.com",  # Replace with your actual origin
+#         "http://localhost:8000",  # Localhost with port 8000
+#         "http://127.0.0.1:8000",  # Also include 127.0.0.1 if needed,
+#         "http://localhost:3000",  # Localhost with port 8000
+#         "http://127.0.0.1:3000",  # Also include 127.0.0.1 if needed,
+#         "*",
+#     ],
+#     allow_credentials=True,
+#     allow_methods=["*"],  # Or specify methods like ["GET", "POST", "PUT", "DELETE"]
+#     allow_headers=["*"],  # Or specify headers
+# )
 
 
 def read_pickle_file_from_path(pickle_path: str):
